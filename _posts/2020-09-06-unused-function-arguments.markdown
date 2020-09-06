@@ -334,5 +334,13 @@ Note that there is some overhead in debug mode.
 Moreover, there is a linter warning about those parameters, which is really helpful.
 Also, the tooling (i.e., rust playground or godbolt) is really nice to have. It easily allows to look at the generated assembly.
 
+<h1>Additium</h1>
+On reddit it was remarked that drop-types behave differently.
+If a function argument is a drop-type (and not a reference to one), then the function must clean up the instance.
+So, even if the argument seems to be unused, it actually is used (in order to call drop on it).
+
+I guess it is fair to say that the compiler leaves out some optimization potential, but I'm unsure if this leads to real-world performance digressions.
+
+
 [stackoverflow]: https://stackoverflow.com/questions/63697356/will-rust-optimize-away-unused-function-arguments
 [^unnecessaryoptimization]: Well, it could reason that there is only a unique implementation of DummyTrait. But this optimization seems unnecessary, since the whole point of dynamic dispatch is to support multiple implementations.
