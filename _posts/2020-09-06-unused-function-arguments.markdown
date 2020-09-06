@@ -2,7 +2,7 @@
 title:  "Zero cost abstractions: Unused arguments in Rust"
 layout: default
 date:   2020-09-05 14:14:18 +0200
-categories: Rust
+tags: Rust
 ---
 <h1>Topic</h1>
 This short entry is a longer answer to [stackoverflow][stackoverflow].
