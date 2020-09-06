@@ -1,7 +1,7 @@
 ---
 title:  "Zero cost abstractions: Unused arguments in Rust"
 layout: default
-date:   2020-09-06 21:58:48 +0100
+date:   2020-09-06 21:58:58 +0100
 tags: Rust
 ---
 <h1>Topic</h1>
