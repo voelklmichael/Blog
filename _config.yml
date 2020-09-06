@@ -24,8 +24,8 @@ description: >- # this means to ignore newlines until "baseurl:"
   One more blog about software, math & physics.
   Must content will be implemented in Rust & Haskell.
   The default example is raytracing.    
-#url: "https://github.com/voelklmichael/Blog" # the base hostname & protocol for your site, e.g. http://example.com
-baseurl: "Blog"
+url: "https://github.com/voelklmichael/Blog" # the base hostname & protocol for your site, e.g. http://example.com
+#baseurl: "Blog"
 #twitter_username: jekyllrb
 github_username:  michaelvoelkl
 
