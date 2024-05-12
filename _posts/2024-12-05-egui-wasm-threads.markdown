@@ -202,6 +202,7 @@ Remark: If you reload the egui web app, you might need to unregister the service
 The error messages, Chrome and Firefox:
 ![No javascript error message on Firefox](./assets/egui-wasm-threads/Firefox_NoJavascript.png)
 ![No javascript error message on Chrome](Blog/assets/egui-wasm-threads/Chrome_NoJavascript.png)
+![No javascript error message on Chrome]({{Blog/assets/egui-wasm-threads/Chrome_NoJavascript.png | relative_url }})  
 Both errors point to the javascript file, <b>dummy_worker.js</b>, which we used in the spawn function.
 
 Remark: Note that our app does no longer run on the desktop :-/
