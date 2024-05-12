@@ -13,11 +13,12 @@ But: On the web threads cannot be used - because the API just does not exist.
 A partial replacement is called webworkers.
 
 In this short blog post, I adjust the eframe-template app to use webworkers.
+You can find the example [here](https://github.com/voelklmichael/eframe_template_wasm).
 
 I learned this from [minno728](https://github.com/minno726/). Thank you!
 
 <h1>The issue</h1>
-We start with clone the eframe-template app:
+First we clone the eframe-template app:
 {% highlight shell %}
 git clone https://github.com/emilk/eframe_template/
 {% endhighlight %}
@@ -196,11 +197,11 @@ Now, we finally can try it (and fail ...)
 {% highlight shell %}
 trunk serve
 {% endhighlight %}
-Remark: If you reload the egui web app, you might need to unregister the service worker, on about:serviceworkers (Firefox).
+Remark: If you reload the egui web app, you might need to unregister the service worker, check about:serviceworkers (Firefox).
 
 The error messages, Chrome and Firefox:
-![No javascript error message on Firefox](/assets/egui-wasm-threads/Firefox_NoJavascript.png)
-![No javascript error message on Chrome](/assets/egui-wasm-threads/Chrome_NoJavascript.png)
+![No javascript error message on Firefox](./assets/egui-wasm-threads/Firefox_NoJavascript.png)
+![No javascript error message on Chrome](Blog/assets/egui-wasm-threads/Chrome_NoJavascript.png)
 Both errors point to the javascript file, <b>dummy_worker.js</b>, which we used in the spawn function.
 
 Remark: Note that our app does no longer run on the desktop :-/
