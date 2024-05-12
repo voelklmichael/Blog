@@ -4,349 +4,260 @@ layout: default
 date:   2024-05-12 19:21:59 +0100
 tags: Rust, egui, wasm
 ---
-<h1>Topic</h1>
-HowTo: Using threads on the web in an egui app
-<br/>
-Currently, I'm porting my desktop app to the web. 
+<h1>HowTo: Using threads on the web in an egui app</h1>
+
+Currently, I'm porting a desktop app to the web. 
 The app gui is written in egui, and compute-heavy tasks use threads both for improved user experience and for increased performance.
-On the web threads cannot be used - because the API just does not exist.
+
+But: On the web threads cannot be used - because the API just does not exist.
 A partial replacement is called webworkers.
 
+In this short blog post, I adjust the eframe-template app to use webworkers.
 
-The questions is:
-<br/>
-<b>
-Is there a (negative) performance impact due to unused function arguments (in Rust)?</b>
-<br/>
-Claim: There is no runtime performance impact. The compiler removes all unused function arguments (in release mode).
+I learned this from [minno728](https://github.com/minno726/). Thank you!
 
-<h1>Free Functions</h1>
-To this end, we will consider the following three functions:
+<h1>The issue</h1>
+We start with clone the eframe-template app:
+{% highlight shell %}
+git clone https://github.com/emilk/eframe_template/
+{% endhighlight %}
+We adjust app.rs to start a thread. From
 {% highlight rust %}
-fn single_argument(x: u32) -> u32 {
-    x + 424242
-}
-fn too_many_arguments(x: u32, y: u32) -> u32 {
-    x + 424242
-}
-fn enough_arguments(x: u32, y: u32) -> u32 {
-    x + y
-}
+  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    // Here we insert our snippet
+    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {    
 {% endhighlight %}
-Lets have a look at the generate assembly ([playground_1](
-https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=0df6168f1becd11062f6c51cd9aabfde)):
-{% highlight Sass %}
-playground::single_argument:
-	pushq	%rax
-	movl	%edi, 4(%rsp)
-	addl	$424242, %edi
-	setb	%al
-	testb	$1, %al
-	movl	%edi, (%rsp)
-	jne	.LBB0_2
-	movl	(%rsp), %eax
-	popq	%rcx
-	retq
-
-playground::too_many_arguments:
-	subq	$24, %rsp
-	movl	%edi, 16(%rsp)
-	movl	%esi, 20(%rsp)
-	addl	$424242, %edi
-	setb	%al
-	testb	$1, %al
-	movl	%edi, 12(%rsp)
-	jne	.LBB1_2
-	movl	12(%rsp), %eax
-	addq	$24, %rsp
-	retq
-
-playground::enough_arguments:
-	subq	$24, %rsp
-	movl	%edi, 16(%rsp)
-	movl	%esi, 20(%rsp)
-	addl	%esi, %edi
-	setb	%al
-	testb	$1, %al
-	movl	%edi, 12(%rsp)
-	jne	.LBB2_2
-	movl	12(%rsp), %eax
-	addq	$24, %rsp
-	retq
-{% endhighlight %}
-Since this is a bit much to understand, release mode:
-{% highlight Sass %}
-playground::single_argument:
-	leal	424242(%rdi), %eax
-	retq
-
-playground::too_many_arguments:
-	leal	424242(%rdi), %eax
-	retq
-
-playground::enough_arguments:
-	leal	(%rdi,%rsi), %eax
-	retq
-{% endhighlight %}
-As promised, no difference between <b>single_argument</b> & <b>too_many_arguments</b>.
-I guess (I'm not an assembly expert), that in debug mode <b>too_many_arguments</b> writes its argument <b>y</b> into a register.
-
-Last check: We want to check there is some overhead at the call site.
-Note that the following example forbids inlining and uses each function twice to ensure that the compiler does not replace function calls by their return values.
+to
 {% highlight rust %}
-#[inline(never)]
-#[no_mangle]
-fn single_argument(x: u32) -> u32 {
-    x + 424242
-}
+  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    log::debug!("before thread");
+    let _ = std::thread::spawn(|| log::debug!("message from thread"));
+    log::debug!("after thread");           
+    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {    
+{% endhighlight %}
+This does not work. 
+Here is the error message on Firefox and Chrome.
+![Thread error message on Firefox](/assets/egui-wasm-threads/FireFox_Thread_Fail.png)
+![Thread error message on Chrome](/assets/egui-wasm-threads/Chrome_Thread_Fail.png)
+Note that the Chrome error is much more helpful.
+Also note, that log statement after the thread.spawn(…) is not reached.
 
-#[inline(never)]
-#[no_mangle]
-fn too_many_arguments(x: u32, y: u32) -> u32 {
-    x + 424242
-}
+<h1>Solution</h1>
+The solution is to replace the thread on Wasm with a webworker.
+For this we will use the crate <b>gloo_worker</b>:
+{% highlight shell %}
+cargo add gloo-worker
+{% endhighlight %}
+We will need to adjust the index.html file as well as some rust code.
 
-#[inline(never)]
-#[no_mangle]
-fn enough_arguments(x: u32, y: u32) -> u32 {
-    x + y
-}
+<h1>The Gloo worker</h1>
+We add a new rust file, webworker.rs.
+{% highlight rust %}
+pub struct WebWorker {}    
+{% endhighlight %}
+Then we implement gloo_worker::Worker, using rust-analyzer:
+{% highlight rust %}
+impl gloo_worker::Worker for WebWorker {
+    type Message;
 
+    type Input;
+
+    type Output;
+
+    fn create(scope: &gloo_worker::WorkerScope<Self>) -> Self {
+        todo!()
+    }
+
+    fn update(&mut self, scope: &gloo_worker::WorkerScope<Self>, msg: Self::Message) {
+        todo!()
+    }
+
+    fn received(&mut self, scope: &gloo_worker::WorkerScope<Self>, msg: Self::Input, id: gloo_worker::HandlerId) {
+        todo!()
+    }
+}
+{% endhighlight %}
+which we fill in with typed dummy data
+{% highlight rust %}
+#[derive(Debug)]
+pub struct Message(pub u32);
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Input(pub u32);
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Output(pub u32);
+
+pub struct WebWorker {}
+impl gloo_worker::Worker for WebWorker {
+    type Message = Message;
+    type Input = Input;
+    type Output = Output;
+
+    fn create(_scope: &gloo_worker::WorkerScope<Self>) -> Self {
+        log::debug!("create");
+        Self {}
+    }
+
+    fn update(&mut self, _scope: &gloo_worker::WorkerScope<Self>, msg: Self::Message) {
+        log::debug!("update {msg:?}");
+    }
+
+    fn received(
+        &mut self,
+        scope: &gloo_worker::WorkerScope<Self>,
+        msg: Self::Input,
+        _id: gloo_worker::HandlerId,
+    ) {
+        log::debug!("received {msg:?}");
+        scope.respond(_id, Output(msg.0 + 5001));
+    }
+}
+{% endhighlight %}
+
+<h1>Adjusting fn new(…)</h1>
+Next we proceed with app.rs.
+We start our webworker together with our app, so we adjust <b>fn new(cc : ..)</b>.
+If our webworker sends a response, we collect the latest and ask egui to repaint.
+Do you see this funny javascript file? We come back to it later.
+[^Footnote1]
+{% highlight rust %}
+pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    let ctx = cc.egui_ctx.clone();
+    let data_update = std::rc::Rc::new(std::cell::Cell::new(None));
+    let sender = data_update.clone();
+    let bridge = <crate::webworker::WebWorker as gloo_worker::Spawnable>::spawner()
+        .callback(move |response| {
+            sender.set(Some(response.0));
+            ctx.request_repaint();
+        })
+        .spawn("./dummy_worker.js");
+    // …
+{% endhighlight %}
+
+We adjust the TemplateApp accordingly, from 
+{% highlight rust %}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(default)] 
+pub struct TemplateApp {
+    // Example stuff:
+    label: String,
+
+    #[serde(skip)] // This how you opt-out of serialization of a field
+    value: f32,
+}
+{% endhighlight %}
+to 
+{% highlight rust %}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct TemplateApp {
+    // Example stuff:
+    label: String,
+
+    #[serde(skip)]
+    value: f32,
+    #[serde(skip)]
+    bridge: Option<gloo_worker::WorkerBridge<crate::webworker::WebWorker>>,
+    #[serde(skip)]
+    data_update: Option<std::rc::Rc<std::cell::Cell<Option<u32>>>>,
+}
+{% endhighlight %}
+and stores the added data in the new function.
+
+Finally, we work with the <b>update</b> method:
+We check if there was a request, by adding the following code snippet:
+{% highlight rust %}
+let data_update = self.data_update.as_mut().unwrap();
+if let Some(update) = data_update.take() {
+    log::debug!("Received update: {update:?}")
+}
+{% endhighlight %}
+
+Then, in the button of the egui template, we trigger our webworker
+Thus, we exchange 
+{% highlight rust %}
+if ui.button("Increment").clicked() {
+    self.value += 1.0;
+}
+{% endhighlight %}
+with 
+{% highlight rust %}
+if ui.button("Increment").clicked() {
+    self.value += 1.0;
+    let msg = self.value.floor().max(0.) as u32;
+    self.bridge
+        .as_mut()
+        .unwrap()
+        .send(crate::webworker::Input(msg));
+    log::debug!("Message send {msg}");
+}
+{% endhighlight %}
+
+Now, we finally can try it (and fail ...)
+{% highlight shell %}
+trunk serve
+{% endhighlight %}
+Remark: If you reload the egui web app, you might need to unregister the service worker, on about:serviceworkers (Firefox).
+
+The error messages, Chrome and Firefox:
+![No javascript error message on Firefox](/assets/egui-wasm-threads/Firefox_NoJavascript.png)
+![No javascript error message on Chrome](/assets/egui-wasm-threads/Chrome_NoJavascript.png)
+Both errors point to the javascript file, <b>dummy_worker.js</b>, which we used in the spawn function.
+
+Remark: Note that our app does no longer run on the desktop :-/
+{% highlight shell %}
+cargo run
+    Finished dev [unoptimized + debuginfo] target(s) in 0.31s
+     Running `target/debug/eframe_template`
+thread 'main' panicked at ~/.cargo/registry/src/index.crates.io-6f17d22bba15001f/js-sys-0.3.66/src/lib.rs:5982:9:
+cannot call wasm-bindgen imported functions on non-wasm targets
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ {% endhighlight %}
+
+<h1>Adding a second binary</h1>
+The missing javascript file will automatically be generated by <b>trunk serve</b>.
+To this end we add a second binary to our crate[^Footnote2].
+{% highlight toml %}
+[[bin]]
+name = "dummy_worker"
+path = "src/dummy_worker.rs"
+{% endhighlight %}
+We create a new file, dummy_worker.rs:
+{% highlight rust %}
+use gloo_worker::Registrable;
 fn main() {
-    println!("Result: {:?}", too_many_arguments(112, 113));
-    println!("Result: {:?}", enough_arguments(114, 115),);
-    println!("Result: {:?}", single_argument(116));
-    println!("Result: {:?}", too_many_arguments(117, 118));
-    println!("Result: {:?}", enough_arguments(119, 120),);
-    println!("Result: {:?}", single_argument(121));
+    eframe_template::webworker::WebWorker::registrar().register();
 }
 {% endhighlight %}
-And the generated assembly (in release mode):
-{% highlight Sass %}
-playground::main:
-  /* unimportant */	 	
-  movl	$112, %edi
-	callq	too_many_arguments
-  /* unimportant */	 	
-  movl	$114, %edi
-	movl	$115, %esi
-	callq	enough_arguments
-	/* unimportant */	   	
-  movl	$116, %edi
-	callq	single_argument
-	/* unimportant */	 	
-  movl	$117, %edi
-	callq	too_many_arguments
-	/* unimportant */	 
-  movl	$119, %edi
-	movl	$120, %esi
-	callq	enough_arguments
-	/* unimportant */	 
-  movl	$121, %edi
-	callq	single_argument
-	/* unimportant */	   
-
-
+Finally, we need to adjust index.html, to communicate this change to trunk:
+we replace
+{% highlight html %}
+<link data-trunk rel="rust" data-wasm-opt="2" />
 {% endhighlight %}
-We observe that calls to <b>enough_arguments</b> are preceed by two <b>movl</b> (with the expected numbers), whereas both <b>too_many_arguments</b> & <b>single_argument</b> are only preceeded by a single <b>movl</b>. 
-<br>
-Hence: In release mode, there is no runtime overhead associated with unused function arguments.
-
-Sideremark: In debug mode we see the expected overhead:
-{% highlight Sass %}
-playground::main:
-  /* unimportant */	 	
-  movl	$112, %edi
-  movl	$113, %esi
-	callq	too_many_arguments
-  /* skipped */   
-  
+with 
+{% highlight html %}
+<link data-trunk rel="rust" data-wasm-opt="2" data-bin="eframe_template" data-type="main" />
+<link data-trunk rel="rust" href="Cargo.toml" data-wasm-opt="2" data-bin="dummy_worker" data-type="worker" />
 {% endhighlight %}
 
-<h1>Traits</h1>
-
-The questions which motivated this post is slightly different.
-
-Let's say we have some trait:
-{% highlight rust %}
-trait DummyTrait {
-    fn add(&self, x: u32, y: u32) -> u32;  
-}
-{% endhighlight %} 
-and we have an implementor who is not using all arguments:
-{% highlight rust %}
-fn new(z: u32) -> DummyStruct {
-    DummyStruct { z }
-}
-
-impl DummyTrait for DummyStruct {
-    fn add(&self, x: u32, _: u32) -> u32 {
-        self.z + x + 424242
-    }
-}
-{% endhighlight %} 
-Question: Does this lead to run-time costs?
-
-The expected answer is: Since LLVM does not know about traits, it basically sees only free function, hence there is no overhead.
-
-But lets look at some more assembly.
-Here is the example rust: (Again, no inlining and double function calls to avoid optimizations.)
-{% highlight rust %}
-trait DummyTrait {
-    #[inline(never)]
-    fn add(&self, x: u32, y: u32) -> u32 {
-        y + 1234567
-    }
-}
-
-struct DummyStruct {
-    z: u32,
-}
-
-#[inline(never)]
-#[no_mangle]
-fn new(z: u32) -> DummyStruct {
-    DummyStruct { z }
-}
-
-impl DummyTrait for DummyStruct {
-    #[inline(never)]
-    fn add(&self, x: u32, _: u32) -> u32 {
-        self.z + x + 424242
-    }
-}
-
-fn main() {
-    let dummy = new(12345);
-    println!("Result: {:?}", dummy.add(110, 111));
-    println!("Result: {:?}", dummy.add(112, 113));
-}
-{% endhighlight %} 
-and the relevant assembly:
-{% highlight Sass %}
-playground::main:
-  /* unimportant */	 	
-	movl	$12345, %edi
-	movl	$110, %esi
-	callq	<playground::DummyStruct as playground::DummyTrait>::add
-  /* unimportant */	 	
-	movl	$12345, %edi
-	movl	$112, %esi
-	callq	<playground::DummyStruct as playground::DummyTrait>::add
-  /* unimportant */
+Now it works :-)
+{% highlight shell %}
+trunk serve
 {% endhighlight %}
-Once again, no <b>$111</b> or <b>$113</b>, so no overhead.
-
-Can we see some overhead? Yes, like this:
-{% highlight rust %}
-trait DummyTrait {
-    #[inline(never)]
-    fn add(&self, x: u32, y: u32) -> u32 {
-        y + 1234567
-    }
-}
-
-struct DummyStruct {
-    z: u32,
-}
-
-#[inline(never)]
-#[no_mangle]
-fn new(z: u32) -> DummyStruct {
-    DummyStruct { z }
-}
-
-impl DummyTrait for DummyStruct {
-    #[inline(never)]
-    fn add(&self, x: u32, _: u32) -> u32 {
-        self.z + x + 424242
-    }
-}
-
-#[inline(never)]
-#[no_mangle]
-fn overhead(d:&dyn DummyTrait, x:u32,y:u32) -> u32 {
-    d.add(x,y)
-}
-
-fn main() {
-    let dummy = new(12345);
-    println!("Result: {:?}", overhead(&dummy, 114, 115));
-    println!("Result: {:?}", overhead(&dummy, 116, 117));
-}
-{% endhighlight %} 
-and the relevant assembly:
-{% highlight Sass %}
-playground::main:
-  /* unimportant */	 	
-	movl	$114, %edx
-	movl	$115, %ecx
-	callq	overhead
-  /* unimportant */
-{% endhighlight %}
-But here we call into an unknown trait implementation, using dynamic dispatch.
-So: What else should the compiler do? [^unnecessaryoptimization]
-
-Last topic: Default implementation [playground_2](https://play.rust-lang.org/?version=stable&mode=release&edition=2015&gist=f27cb97a33d0e85cc46877b1d799b56e)
-{% highlight rust %}
-trait DummyTrait {
-    #[inline(never)]
-    fn add(&self, x: u32, y: u32) -> u32 {
-        y + 1234567
-    }
-}
-
-struct DummyStruct2 {
-    z: u32,
-}
-
-#[inline(never)]
-#[no_mangle]
-fn new2(z: u32) -> DummyStruct2 {
-    DummyStruct2 { z }
-}
-
-impl DummyTrait for DummyStruct2 {}
-
-fn main() {
-    let dummy2 = new2(12345);
-    println!("Result: {:?}", dummy2.add(114, 115));
-    println!("Result: {:?}", dummy2.add(116, 117));
-}
-{% endhighlight %} 
-and the relevant assembly:
-{% highlight Sass %}
-playground::main:
-  /* unimportant */	 	
-	movl	$115, %edi
-	callq	playground::DummyTrait::add
-	/* unimportant */
-  movl	$117, %edi
-	callq	playground::DummyTrait::add
-	/* unimportant */
-{% endhighlight %}
-Once again, we do not see any overhead. This is expected, since we still do static dispatch, so have a free function in LLVM (only the location of the function's source code changed).
-
-<h1>Summary</h1>
-Let's recall the definition of zero-cost abstraction due to Bjarne Stroustrup:
-<br>
-<i>What you don’t use, you don’t pay for. And further: What you do use, you couldn’t hand code any better.</i>
-<br>
-So we have checked:
-Unused function arguments are a zero-cost abstraction in Rust.
-
-Note that there is some overhead in debug mode.
-
-Moreover, there is a linter warning about those parameters, which is really helpful.
-Also, the tooling (i.e., rust playground or godbolt) is really nice to have. It easily allows to look at the generated assembly.
-
-<h1>Additium</h1>
-On reddit it was remarked that drop-types behave differently.
-If a function argument is a drop-type (and not a reference to one), then the function must clean up the instance.
-So, even if the argument seems to be unused, it actually is used (in order to call drop on it).
-
-I guess it is fair to say that the compiler leaves out some optimization potential, but I'm unsure if this leads to real-world performance digressions.
+Clicking on increment, sends messages:
+![Working](/assets/egui-wasm-threads/Working.png)
 
 
-[stackoverflow]: https://stackoverflow.com/questions/63697356/will-rust-optimize-away-unused-function-arguments
-[^unnecessaryoptimization]: Well, it could reason that there is only a unique implementation of DummyTrait. But this optimization seems unnecessary, since the whole point of dynamic dispatch is to support multiple implementations.
+<h1>Further questions</h1>
+1. The logging statement from the WebWorker is not working. I'm unsure why.    
+1. The trait gloo_worker::Worker has an associated type "Message". What does it do?
+1. Can we start multiple web workers? A dynamic number?
+    I plan to test this next.
+1. When is the create function of the gloo_worker actually called?
+    I've cheked that it is not called during the spawn function of our bridge.
+    I tried to debug it, setting a break point inside the create function of the WebWorker struct. 
+    But clicking on the button in the GUI still works, even if paused in this breakpoint ...
+
+
+<h3>Footnotes</h3>
+[^Footnote1]: when is the spawn actually executed? -> see below
+[^Footnote2]: Crate is wrong, I guess. Package seems to be the correct term.
