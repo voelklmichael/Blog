@@ -1,7 +1,7 @@
 ---
 title:  "HowTo: Egui with webworkers"
 layout: default
-date:   2024-12-05 21:21:59 +0100
+date:   2024-05-12 19:21:59 +0100
 tags: Rust, egui, wasm
 ---
 <h1>Topic</h1>
