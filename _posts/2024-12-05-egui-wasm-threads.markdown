@@ -1,12 +1,18 @@
 ---
-title:  "Zero cost abstractions: Unused arguments in Rust"
+title:  "HowTo: Egui with webworkers"
 layout: default
-date:   2024-05-12 20:21:59 +0100
-tags: Rust
+date:   2024-12-05 21:21:59 +0100
+tags: Rust, egui, wasm
 ---
 <h1>Topic</h1>
-This short entry is a longer answer to [stackoverflow][stackoverflow].
+HowTo: Using threads on the web in an egui app
 <br/>
+Currently, I'm porting my desktop app to the web. 
+The app gui is written in egui, and compute-heavy tasks use threads both for improved user experience and for increased performance.
+On the web threads cannot be used - because the API just does not exist.
+A partial replacement is called webworkers.
+
+
 The questions is:
 <br/>
 <b>
