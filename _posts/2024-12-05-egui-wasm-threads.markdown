@@ -39,9 +39,9 @@ to
 This does not work. 
 Here is the error message on Firefox and Chrome.
 
-![Thread error message on Firefox](/assets/egui-wasm-threads/FireFox_Thread_Fail.png)
+![Thread error message on Firefox]({{ "/assets/egui-wasm-threads/FireFox_Thread_Fail.png" | relative_url }})  
 
-![Thread error message on Chrome](/assets/egui-wasm-threads/Chrome_Thread_Fail.png)
+![Thread error message on Chrome]({{ "/assets/egui-wasm-threads/Chrome_Thread_Fail.png" | relative_url }})  
 
 Note that the Chrome error is much more helpful.
 Also note, that log statement after the thread.spawn(…) is not reached.
@@ -204,9 +204,7 @@ Remark: If you reload the egui web app, you might need to unregister the service
 
 The error messages, Chrome and Firefox:
 
-![No javascript error message on Firefox](./assets/egui-wasm-threads/Firefox_NoJavascript.png)
-
-![No javascript error message on Chrome](Blog/assets/egui-wasm-threads/Chrome_NoJavascript.png)
+![No javascript error message on Firefox]({{ "/assets/egui-wasm-threads/Firefox_NoJavascript.png" | relative_url }})  
 
 ![No javascript error message on Chrome]({{ "/assets/egui-wasm-threads/Chrome_NoJavascript.png" | relative_url }})  
 
@@ -254,7 +252,7 @@ trunk serve
 {% endhighlight %}
 Clicking on increment, sends messages:
 
-![Working](/assets/egui-wasm-threads/Working.png)
+![Working]({{ "/assets/egui-wasm-threads/Working.png" | relative_url }})  
 
 
 <h1>Further questions</h1>
