@@ -208,7 +208,7 @@ The error messages, Chrome and Firefox:
 
 ![No javascript error message on Chrome](Blog/assets/egui-wasm-threads/Chrome_NoJavascript.png)
 
-![No javascript error message on Chrome]({{/assets/egui-wasm-threads/Chrome_NoJavascript.png | relative_url }})  
+![No javascript error message on Chrome]({{ "/assets/egui-wasm-threads/Chrome_NoJavascript.png" | relative_url }})  
 
 Both errors point to the javascript file, <b>dummy_worker.js</b>, which we used in the spawn function.
 
