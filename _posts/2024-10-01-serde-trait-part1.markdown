@@ -14,11 +14,11 @@ trait Message {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 struct MessageContainer {
-    messages: Vec<Box<Message>>
+    messages: Vec<Box<dyn Message>>
 }
 {% endhighlight %}
 
-Here we have a trait object, `Box<Message>`.
+Here we have a trait object, `Box<dyn Message>`.
 The aim of this series of blog posts is to make this code compile. 
 Part of the solution will be to add a macro on top of the trait definition
 
