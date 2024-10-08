@@ -30,7 +30,7 @@ In my experience, the enum approach is much easier to work with.[^FootnoteRant]
 
 In this series of blog posts I'm explaining how to use serde with trait objects:
 - [Part 1: Overview]({% post_url 2024-10-01-serde-trait-part1 %})
-- Part 2: Serialization
+- [Part 2: Serialization]({% post_url 2024-10-08-serde-trait-part2 %})
 - Part 3: Deserialization
 - Part 4: Registry
 - Part 5: Lifetimes
@@ -356,7 +356,7 @@ Since Task 3 depends on the API of Task 2, we will proceed in the following orde
 Note that, once we have complete those three tasks, we will still need to write derive macros and so on, so we have a reasonable amount of work in front of us.
 
 This is it for today, 
-the next post 
+[the next post]({% post_url 2024-10-08-serde-trait-part2 %})
 will be about serialization and complete task 1.
 
 
