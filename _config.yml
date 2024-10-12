@@ -25,7 +25,7 @@ description: >- # this means to ignore newlines until "baseurl:"
   Most content will be implemented in Rust.
   The default toy example is ray tracing.    
 url: "https://voelklmichael.github.io" # the base hostname & protocol for your site, e.g. http://example.com
-baseurl: "/blog"
+baseurl: "/Blog"
 permalink: none
 #twitter_username: jekyllrb
 github_username:  voelklmichael
