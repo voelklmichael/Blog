@@ -23,8 +23,8 @@ email: michaelvoelkl@zoho.com
 description: >- # this means to ignore newlines until "baseurl:"
   One more blog about software, math & physics.
   Most content will be implemented in Rust.
-  The default topy example is ray tracing.    
-url: "https://voelklmichael.github.io/" # the base hostname & protocol for your site, e.g. http://example.com
+  The default toy example is ray tracing.    
+url: "https://voelklmichael.github.io/Blog" # the base hostname & protocol for your site, e.g. http://example.com
 baseurl: "Blog"
 #twitter_username: jekyllrb
 github_username:  voelklmichael
