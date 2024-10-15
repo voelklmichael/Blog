@@ -31,7 +31,7 @@ In my experience, the enum approach is much easier to work with.[^FootnoteRant]
 In this series of blog posts I'm explaining how to use serde with trait objects:
 - [Part 1: Overview]({% post_url 2024-10-01-serde-trait-part1 %})
 - [Part 2: Serialization]({% post_url 2024-10-08-serde-trait-part2 %})
-- Part 3: Deserialization
+- [Part 3: Deserialization]({% post_url 2024-10-15-serde-trait-part3 %})
 - Part 4: Registry
 - Part 5: Lifetimes
 - Part 6: Sync/Send

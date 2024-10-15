@@ -1,14 +1,20 @@
 ---
 title:  "Serde Trait - Part 3: Deserialization"
 layout: default
-date:   2024-09-15 08:22:59 +0100
+date:   2024-10-15 08:22:59 +0100
 tags: Rust, serde
 ---
 <h1>Serde for trait objects - Part 3: Deserialization</h1>
 
 In this series of blog posts I'm explaining how to use serde with trait objects:
--
+- [Part 1: Overview]({% post_url 2024-10-01-serde-trait-part1 %})
+- [Part 2: Serialization]({% post_url 2024-10-08-serde-trait-part2 %})
+- [Part 3: Deserialization]({% post_url 2024-10-15-serde-trait-part3 %})
+- Part 4: Registry
 - Part 5: Lifetimes
+- Part 6: Sync/Send
+- Part 7: Macro Part A: Trait
+- Part 8: Marco Part B: Implementation
 
 Remark: If you are in a situation where you want to serialize a trait object, please take a step back.
 Check if you can replace your trait object with an enum.
@@ -36,11 +42,11 @@ Our json input will be:
 {% highlight shell %}
 {"S":{"data":0}}
 {% endhighlight %}
-which is a "key-value map" <b>{key: value}</b> in the serde world, and corresponds to the [externally tagged](https://serde.rs/enum-representations.html) serialization of an enum. 
+which is a "key-value map" <b>{key: value}</b> in the serde world, and corresponds to the [externally tagged](https://serde.rs/enum-representations.html) serialization of an enum[^FootnotePreferenceInternallyTagged]. 
 In our example, <b>{"S": {"data":0}}</b>, we have the key/type-info <b>"S"</b> and the value/type-serialization <b>{"data": 0}</b>.
 
 To implement `Deserialize`, we start with the following snippet. 
-Note that the "output" will be a boxed trait object, which is "just a type" (as opposed to a trait, and it is "owned").
+Note that the "output" will be a boxed trait object, which is "just a type" (as opposed to a trait, and it is "owned"[^FootnoteOwnership]).
 {% highlight rust %}
 impl<'de> serde::Deserialize<'de> for Box<dyn Trait> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -161,7 +167,8 @@ where
     dbg!(&type_info);
     let s = map.next_value::<S>()?;
     let boxed_trait_object: Box<dyn Trait> = Box::new(s);
-    Ok(boxed_trait_object)}
+    Ok(boxed_trait_object)
+}
 {% endhighlight %}
 
 This works and compiles, so we are done.
@@ -203,7 +210,7 @@ where
 {% endhighlight %}
 
 Recall from our dotnet-digression in Part 1, that we need a runtime-reflection mechanism at some point.
-This mechanism will be covered in the next Part. 
+This mechanism will be covered in the next part. 
 Today, I want to finish the deserialization machine.
 
 First, we introduce an abstract <b>deserialization function</b>.
@@ -252,7 +259,7 @@ fn runtime_reflection(type_info: &str) -> Option<DeserializeFn> {
 This works!
 Now, given our `runtime_reflection` function, we can deserialize any instance of our trait object. Hurray!
 
-Here as a complete code snippet:
+Here is a complete code snippet:
 {% highlight rust %}
 trait Trait {}
 
@@ -341,7 +348,9 @@ let deserialize_fn = |deserializer: &mut dyn erased_serde::Deserializer| {
     Ok(boxed_trait_object)
 };
 {% endhighlight %}
-And here is some nice, generic code.[^FootnoteTraitBounds]
+And here is some nice, generic code.
+The bounds are actually requested by the compiler, so we just add them.
+[^FootnoteTraitBounds]
 {% highlight rust %}
 fn deserialize_fn_generic<A>(
     deserializer: &mut dyn erased_serde::Deserializer,
@@ -382,8 +391,14 @@ fn runtime_reflection(type_info: &str) -> Option<DeserializeFn> {
 That's it for today. 
 Thank you for following the blog series. 
 
-Next time we will proceed with runtime reflection.
+Next time we will proceed with runtime reflection and replace the hard-coded 
+{% highlight rust %}
+if type_info == "S"
+{% endhighlight %}
+by a lookup-table.
 
 
 <h3>Footnotes</h3>
-[^FootnoteTraitBounds]: Without the bounds, the compiler complains. So I just added bounds, until the compiler was happy. The lifetimes will be covered in a later post.
+[^FootnotePreferenceInternallyTagged]: Personally, I prefer the internally tagged variant. But this is quite more involved to code. There might be a later post about it. If you are interested in reading about it, please give me some feedback.
+[^FootnoteOwnership]: I'm referring to the fact that `Box<dyn Trait>` actually means `Box<dyn Trait + 'static>`. Part 5 is about lifetimes.
+[^FootnoteTraitBounds]: Recall from the other footnote that `Box<dyn Trait>` actually means `Box<dyn Trait + 'static>`. Hence, the bound `A:'static` is not surprising. More on lifetimes is discussed in part 5.
